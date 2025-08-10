@@ -2,17 +2,17 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class PerroScript : MonoBehaviour
+public class PerroScriptA : MonoBehaviour
 {
     public float Speed;
     public float JumpForce;
 
     private Rigidbody2D rb;
+    private SpriteRenderer sr;
     private Animator Anim;
     private float horizontal;
     private bool bIsJumping = false;
     private int Health = 5;
-    private SpriteRenderer sr;
 
 
     void Start()
@@ -27,11 +27,11 @@ public class PerroScript : MonoBehaviour
         horizontal = Input.GetAxisRaw("Horizontal");
 
         if (horizontal != 0)
-        sr.flipX = horizontal < 0;
+            sr.flipX = horizontal < 0;
 
-        //Anim.SetBool("Running", horizontal != 0.0f);
+        Anim.SetBool("running", horizontal != 0.0f);
 
-        if (Input.GetKeyDown(KeyCode.W))
+        if (Input.GetKeyDown(KeyCode.Space))
         {
             Jump();
         }
