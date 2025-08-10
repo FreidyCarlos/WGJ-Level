@@ -13,27 +13,43 @@ public class LightConeTilemapCells : MonoBehaviour
 
     [Header("Cono")]
     public float range = 12f;
-    [Range(0, 180)] public float angle = 70f; // apunta por +X
+    [Range(0, 180)] public float angle = 70f; // mira por +X del transform
     public LayerMask occluderMask = 0;
 
     [Header("Rendimiento")]
-    public int maxCellsPerFrame = 200;   // diffs por frame
+    public int maxCellsPerFrame = 200;   // diffs por frame (al aplicar unión)
     public int losSamplesPerCell = 1;    // 1..3
 
     [Header("Efectos por CONO")]
-    [Tooltip("Segundos que una celda permanece encendida tras salir del haz")]
-    public float lingerSeconds = 0.20f;          // 0 = sin persistencia
+    [Tooltip("Segs que una celda permanece encendida tras salir del haz")]
+    public float lingerSeconds = 0.20f;
     [Tooltip("Hz de titileo (0 = sin titileo)")]
-    public float flickerHz = 0f;                 // ej. 6 = 6 veces por segundo
+    public float flickerHz = 0f;
     [Tooltip("Porcentaje de tiempo encendido dentro del ciclo (0..1)")]
     [Range(0f, 1f)] public float flickerDuty = 0.5f;
     [Tooltip("Jitter aleatorio del periodo (0..1)")]
     [Range(0f, 1f)] public float flickerJitter = 0f;
 
+    // --- Debug ---
+    [Header("Gizmos (debug)")]
+    public bool showGizmos = true;                                  // mostrar cono
+    public Color gizmoFill = new Color(1f, 1f, 0f, 0.15f);          // amarillo translúcido
+    public Color gizmoEdge = new Color(1f, 0.9f, 0.2f, 0.9f);       // borde
+
+    // ---------- estado público de sincronía ----------
+    [HideInInspector] public bool coneOnNow;          // true = este frame el cono está "encendido"
+    float _visualLingerUntil = -999f;                 // linger visual (para luz 2D sincronizada)
+    public bool IsVisuallyOnThisFrame()
+    {
+        if (coneOnNow && lingerSeconds > 0f)
+            _visualLingerUntil = Time.time + lingerSeconds;
+        return coneOnNow || (lingerSeconds > 0f && Time.time <= _visualLingerUntil);
+    }
+
     // ------- estado por instancia -------
-    readonly HashSet<Vector3Int> _scanThisFrame = new HashSet<Vector3Int>();        // celdas vistas este frame (si el cono está encendido)
-    readonly Dictionary<Vector3Int, float> _expiry = new Dictionary<Vector3Int, float>(); // celda -> Time.time límite
-    float _phase; // desfase del flicker
+    readonly HashSet<Vector3Int> _scanThisFrame = new HashSet<Vector3Int>();
+    readonly Dictionary<Vector3Int, float> _expiry = new Dictionary<Vector3Int, float>();
+    float _phase;
 
     // ------- estado compartido (unión entre conos) -------
     static Tilemap sLit, sSrc;
@@ -49,7 +65,7 @@ public class LightConeTilemapCells : MonoBehaviour
         if (litCollider) sCol = litCollider;
 
         sSets[this] = new HashSet<Vector3Int>();
-        _phase = Random.value * 10f; // desfase inicial para no sincronizar todos
+        _phase = Random.value * 10f;
     }
 
     void OnDisable()
@@ -62,29 +78,35 @@ public class LightConeTilemapCells : MonoBehaviour
     {
         if (!sourceTilemap || !litTilemap) return;
 
-        bool coneOn = IsConeOn();
-        _scanThisFrame.Clear();
+        // 1) calcular ON/OFF del flicker una sola vez (para sincronía)
+        coneOnNow = IsConeOn();
 
-        if (coneOn) ScanBeamAndMarkExpiry();     // marca expiraciones para lo visto hoy
-        BuildActiveSetFromExpiry();               // arma el set “vigente” (union usa esto)
-        ApplyUnion();                             // aplicar unión una vez por frame (compartido)
+        // 2) escanear solo si está encendido
+        _scanThisFrame.Clear();
+        if (coneOnNow) ScanBeamAndMarkExpiry();
+
+        // 3) construir set activo desde expiraciones (linger)
+        BuildActiveSetFromExpiry();
+
+        // 4) aplicar la UNIÓN entre todos los conos (una vez por frame)
+        ApplyUnion();
     }
 
-    // ---------- lógica por cono ----------
+    // ---------- flicker local ----------
     bool IsConeOn()
     {
-        if (flickerHz <= 0f) return true; // sin titileo
-        // periodo con jitter
-        float baseT = 1f / flickerHz;
-        float t = baseT * (1f + Random.Range(-flickerJitter, flickerJitter));
-        float local = (Time.time + _phase) % Mathf.Max(0.0001f, t);
+        if (flickerHz <= 0f) return true;
+        float baseT = 1f / Mathf.Max(0.0001f, flickerHz);
+        float t = baseT * (1f + Random.Range(-flickerJitter, flickerJitter)); // jitter por frame para look “sucio”
+        float local = (Time.time + _phase) % t;
         return local < (t * Mathf.Clamp01(flickerDuty));
     }
 
+    // ---------- escaneo del haz ----------
     void ScanBeamAndMarkExpiry()
     {
         Vector2 origin = transform.position;
-        Vector2 fwd = transform.right.normalized;
+        Vector2 fwd = transform.right.normalized; // el cono mira por +X
         float half = angle * 0.5f;
         float r = Mathf.Max(0.1f, range);
 
@@ -109,7 +131,6 @@ public class LightConeTilemapCells : MonoBehaviour
                 if (!HasLineOfSight(origin, wc, to.magnitude)) continue;
 
                 _scanThisFrame.Add(cp);
-                // marca/renueva expiración
                 float until = lingerSeconds > 0f ? Time.time + lingerSeconds : Time.time;
                 _expiry[cp] = until;
             }
@@ -117,23 +138,19 @@ public class LightConeTilemapCells : MonoBehaviour
 
     void BuildActiveSetFromExpiry()
     {
-        // purga expirados
         if (lingerSeconds > 0f)
         {
-            // para evitar allocs, recolectamos a borrar
             var toDel = ListPool<Vector3Int>.Get();
-            foreach (var kv in _expiry)
-                if (kv.Value < Time.time) toDel.Add(kv.Key);
+            foreach (var kv in _expiry) if (kv.Value < Time.time) toDel.Add(kv.Key);
             for (int i = 0; i < toDel.Count; i++) _expiry.Remove(toDel[i]);
             ListPool<Vector3Int>.Release(toDel);
         }
         else
         {
-            _expiry.Clear(); // sin linger: solo cuenta lo del frame
+            _expiry.Clear();
             foreach (var c in _scanThisFrame) _expiry[c] = Time.time;
         }
 
-        // actualiza el set que aporta este cono a la unión
         var mySet = sSets[this];
         mySet.Clear();
         foreach (var kv in _expiry) mySet.Add(kv.Key);
@@ -142,37 +159,34 @@ public class LightConeTilemapCells : MonoBehaviour
     // ---------- unión compartida ----------
     static void ApplyUnion()
     {
-        if (Time.frameCount == sLastAppliedFrame) return; // solo 1 vez/frame
+        if (Time.frameCount == sLastAppliedFrame) return; // 1 vez/frame
         sLastAppliedFrame = Time.frameCount;
         if (sLit == null || sSrc == null) return;
 
-        // unión de todos los conos
         var union = HashSetPool<Vector3Int>.Get();
         foreach (var set in sSets.Values) union.UnionWith(set);
 
-        // diffs vs. último estado aplicado
         var toAdd = ListPool<Vector3Int>.Get();
         var toDel = ListPool<Vector3Int>.Get();
 
         foreach (var c in union) if (!sLastUnion.Contains(c)) toAdd.Add(c);
         foreach (var c in sLastUnion) if (!union.Contains(c)) toDel.Add(c);
 
-        int budget = 999999; // se puede limitar si quieres
-        // agrega
-        for (int i = 0; i < toAdd.Count && i < budget; i++)
+        int budget = 0;
+        int maxOps = 999999; // si quieres, cámbialo por GetAny().maxCellsPerFrame
+
+        for (int i = 0; i < toAdd.Count && budget < maxOps; i++, budget++)
         {
             var c = toAdd[i];
             var tile = sSrc.GetTile(c);
             sLit.SetTile(c, tile);
             sLit.SetColor(c, sSrc.GetColor(c));
         }
-        // elimina
-        for (int i = 0; i < toDel.Count && i < budget; i++)
+        for (int i = 0; i < toDel.Count && budget < maxOps; i++, budget++)
             sLit.SetTile(toDel[i], null);
 
         if (sCol) sCol.ProcessTilemapChanges();
 
-        // guarda unión
         sLastUnion.Clear();
         sLastUnion.UnionWith(union);
 
@@ -189,7 +203,8 @@ public class LightConeTilemapCells : MonoBehaviour
 
         var halfCell = sourceTilemap.cellSize * 0.5f;
         Vector3 c = target;
-        Vector2[] pts = {
+        Vector2[] pts =
+        {
             new Vector2(c.x - halfCell.x, c.y - halfCell.y),
             new Vector2(c.x + halfCell.x, c.y - halfCell.y),
             new Vector2(c.x - halfCell.x, c.y + halfCell.y),
@@ -205,7 +220,68 @@ public class LightConeTilemapCells : MonoBehaviour
         return false;
     }
 
-    // ---------- pools tontos para evitar GC ----------
+    // ---------- Gizmos (debug visual del cono) ----------
+#if UNITY_EDITOR
+    void OnDrawGizmos()
+    {
+        if (!showGizmos) return;
+        DrawConeGizmo(filled:true, alphaScale:0.6f); // siempre visible en escena
+    }
+
+    void OnDrawGizmosSelected()
+    {
+        if (!showGizmos) return;
+        DrawConeGizmo(filled:true, alphaScale:1f); // más marcado al seleccionar
+    }
+
+    void DrawConeGizmo(bool filled, float alphaScale)
+    {
+        var o = transform.position;
+        var f = (Vector2)transform.right.normalized; // misma dirección que la lógica
+        float half = angle * 0.5f;
+
+        // Bordes
+        Vector2 dirA = Quaternion.Euler(0, 0, +half) * f;
+        Vector2 dirB = Quaternion.Euler(0, 0, -half) * f;
+
+        // Relleno con Handles si estamos en editor
+        var fillCol = gizmoFill; fillCol.a *= alphaScale;
+        var edgeCol = gizmoEdge;
+
+        // Borde con líneas
+        Gizmos.color = edgeCol;
+        Gizmos.DrawLine(o, o + (Vector3)(dirA * range));
+        Gizmos.DrawLine(o, o + (Vector3)(dirB * range));
+
+        // Arco con segmentos
+        int steps = Mathf.Clamp(Mathf.RoundToInt(angle), 8, 128);
+        Vector2 prev = dirA;
+        for (int i = 1; i <= steps; i++)
+        {
+            float t = Mathf.Lerp(+half, -half, i / (float)steps);
+            Vector2 dir = Quaternion.Euler(0, 0, t) * f;
+            Gizmos.DrawLine(o + (Vector3)(prev * range), o + (Vector3)(dir * range));
+            prev = dir;
+        }
+
+        // Relleno sólido (solo en editor)
+#if UNITY_EDITOR
+        if (filled)
+        {
+            UnityEditor.Handles.color = fillCol;
+            UnityEditor.Handles.DrawSolidArc(
+                o,
+                Vector3.forward,                // eje Z (2D)
+                dirB,                           // empieza en borde inferior
+                angle,                          // recorre hasta borde superior
+                range
+            );
+        }
+#endif
+    }
+#endif
+
+    // ---------- pools para evitar GC ----------
     static class ListPool<T>
     {
         static readonly Stack<List<T>> pool = new Stack<List<T>>();
