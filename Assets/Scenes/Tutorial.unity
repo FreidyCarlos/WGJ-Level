@@ -223,7 +223,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 115.8, y: -33.5}
+  m_AnchoredPosition: {x: 169.84995, y: -33.499977}
   m_SizeDelta: {x: 213.0978, y: 70.038}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &288349836
@@ -300,7 +300,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -7.8, y: -102}
+  m_AnchoredPosition: {x: 0.000013828, y: -157}
   m_SizeDelta: {x: 160, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &463655606
@@ -445,7 +445,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0cd44c1031e13a943bb63640046fad76, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_UiScaleMode: 0
+  m_UiScaleMode: 1
   m_ReferencePixelsPerUnit: 100
   m_ScaleFactor: 1
   m_ReferenceResolution: {x: 800, y: 600}
@@ -536,7 +536,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0.5}
   m_AnchorMax: {x: 0, y: 0.5}
-  m_AnchoredPosition: {x: 76.25308, y: 45}
+  m_AnchoredPosition: {x: 164, y: 63}
   m_SizeDelta: {x: 105, y: 50}
   m_Pivot: {x: 0, y: 0.5}
 --- !u!114 &701751327
@@ -670,7 +670,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -143.24692, y: -33.5}
+  m_AnchoredPosition: {x: -183.50003, y: -33.49999}
   m_SizeDelta: {x: 136.3825, y: 70.038}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &791501671
@@ -871,7 +871,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0.5}
   m_AnchorMax: {x: 0, y: 0.5}
-  m_AnchoredPosition: {x: 317.05307, y: 45}
+  m_AnchoredPosition: {x: 517.35, y: 63.000008}
   m_SizeDelta: {x: 105, y: 50}
   m_Pivot: {x: 0, y: 0.5}
 --- !u!114 &1671285881
@@ -1028,7 +1028,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: SPARKY
+  m_text: TUTORIAL
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 6b3bc11a71ded424c9ead0095207e14c, type: 2}
   m_sharedMaterial: {fileID: -3407130806313737385, guid: 6b3bc11a71ded424c9ead0095207e14c, type: 2}
