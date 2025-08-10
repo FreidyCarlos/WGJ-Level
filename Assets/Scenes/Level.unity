@@ -15480,7 +15480,7 @@ MonoBehaviour:
   lingerSeconds: 0
   flickerHz: 0.1
   flickerDuty: 0.505
-  flickerJitter: 0.04
+  flickerJitter: 0
   showGizmos: 1
   gizmoFill: {r: 1, g: 1, b: 0, a: 0.15}
   gizmoEdge: {r: 1, g: 0.9, b: 0.2, a: 0.9}
