@@ -12,24 +12,26 @@ public class PerroScript : MonoBehaviour
     private float horizontal;
     private bool bIsJumping = false;
     private int Health = 5;
+    private SpriteRenderer sr;
 
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         Anim = GetComponent<Animator>();
+        sr = GetComponent<SpriteRenderer>();
     }
 
     void Update()
     {
         horizontal = Input.GetAxisRaw("Horizontal");
 
-        if (horizontal < 0.0f) transform.localScale = new Vector3(-1.0f, 1.0f, 1.0f);
-        else if (horizontal > 0.0f) transform.localScale = new Vector3(1.0f, 1.0f, 1.0f);
+        if (horizontal != 0)
+        sr.flipX = horizontal < 0;
 
         //Anim.SetBool("Running", horizontal != 0.0f);
 
-        if (Input.GetKeyDown(KeyCode.Space))
+        if (Input.GetKeyDown(KeyCode.W))
         {
             Jump();
         }
